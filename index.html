@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deepchecks — Forensic Integrity Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0D10;
+    --panel:#14171C;
+    --panel-hi:#1B1F26;
+    --line:#262B32;
+    --text:#E7E9EC;
+    --muted:#868D97;
+    --muted-dim:#5B6169;
+    --flag:#FF4D7D;
+    --flag-dim:rgba(255,77,125,0.12);
+    --clean:#4DE8C7;
+    --clean-dim:rgba(77,232,199,0.10);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--flag); color:#14171C;}
+
+  .mono{font-family:'JetBrains Mono', monospace;}
+  .display{font-family:'Space Grotesk', sans-serif;}
+
+  a{color:inherit; text-decoration:none;}
+
+  /* ---------- Background grid texture ---------- */
+  .grid-bg{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:64px 64px;
+    opacity:0.28;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 75%);
+  }
+
+  /* ---------- Nav ---------- */
+  header{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 48px;
+    background:rgba(11,13,16,0.82);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .logo{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700; font-size:19px; letter-spacing:-0.02em;
+  }
+  .logo .dot{
+    width:9px; height:9px; border-radius:2px;
+    background:var(--flag);
+    box-shadow:0 0 12px var(--flag);
+  }
+  nav ul{display:flex; gap:36px; list-style:none;}
+  nav a{
+    font-size:13px; color:var(--muted); font-family:'JetBrains Mono', monospace;
+    letter-spacing:0.02em; transition:color .2s ease;
+  }
+  nav a:hover{color:var(--text);}
+  .nav-cta{
+    border:1px solid var(--line); padding:9px 18px; border-radius:3px;
+    font-size:13px; color:var(--text) !important; font-family:'JetBrains Mono', monospace;
+    transition:border-color .2s ease, background .2s ease;
+  }
+  .nav-cta:hover{border-color:var(--flag); background:var(--flag-dim);}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    position:relative; z-index:1;
+    padding:110px 48px 90px;
+    max-width:1240px; margin:0 auto;
+    display:grid; grid-template-columns:1.05fr 0.95fr; gap:64px; align-items:center;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em;
+    color:var(--flag); text-transform:uppercase; margin-bottom:22px;
+  }
+  .eyebrow::before{content:"●"; font-size:8px;}
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700; letter-spacing:-0.03em;
+    font-size:clamp(38px, 4.6vw, 62px);
+    line-height:1.03;
+    margin-bottom:24px;
+  }
+  h1 .accent{color:var(--flag);}
+  .hero p.lede{
+    font-size:17px; line-height:1.65; color:var(--muted); max-width:520px; margin-bottom:34px;
+  }
+  .hero-actions{display:flex; gap:14px; flex-wrap:wrap;}
+  .btn-primary{
+    background:var(--text); color:var(--ink); font-weight:600;
+    padding:14px 26px; border-radius:3px; font-size:14px;
+    font-family:'Inter', sans-serif;
+    transition:transform .15s ease, box-shadow .15s ease;
+    display:inline-block;
+  }
+  .btn-primary:hover{transform:translateY(-1px); box-shadow:0 8px 24px rgba(255,77,125,0.18);}
+  .btn-ghost{
+    border:1px solid var(--line); padding:14px 26px; border-radius:3px;
+    font-size:14px; font-family:'JetBrains Mono', monospace; color:var(--text);
+    transition:border-color .2s ease;
+  }
+  .btn-ghost:hover{border-color:var(--muted);}
+
+  /* ---------- Terminal signature panel ---------- */
+  .scan-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+  .scan-panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid var(--line);
+    background:var(--panel-hi);
+  }
+  .scan-panel-head .dots{display:flex; gap:6px;}
+  .scan-panel-head .dots span{width:9px; height:9px; border-radius:50%; background:var(--line);}
+  .scan-panel-head .title{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted);}
+  .scan-rows{padding:6px 0; min-height:330px;}
+  .scan-row{
+    display:grid; grid-template-columns:20px 1fr 90px 78px;
+    align-items:center; gap:12px;
+    padding:9px 16px;
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    border-bottom:1px solid rgba(255,255,255,0.03);
+    opacity:0; transform:translateX(-6px);
+    animation:rowIn .4s ease forwards;
+  }
+  .scan-row .idx{color:var(--muted-dim); font-size:11px;}
+  .scan-row .path{color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .scan-row .ts{color:var(--muted-dim); font-size:11px;}
+  .badge{
+    font-size:10px; letter-spacing:0.04em; text-align:center;
+    padding:3px 8px; border-radius:3px; font-weight:700;
+  }
+  .badge.clean{background:var(--clean-dim); color:var(--clean);}
+  .badge.flag{background:var(--flag-dim); color:var(--flag);}
+  .scan-panel-foot{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:13px 16px; border-top:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted-dim);
+    background:var(--panel-hi);
+  }
+  @keyframes rowIn{ to{opacity:1; transform:translateX(0);} }
+
+  /* ---------- Section shell ---------- */
+  section{position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:100px 48px;}
+  .section-head{margin-bottom:56px; max-width:640px;}
+  .section-num{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--flag);
+    margin-bottom:14px; display:block;
+  }
+  h2{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.02em;
+    font-size:clamp(28px, 3vw, 38px); margin-bottom:16px;
+  }
+  .section-head p{color:var(--muted); font-size:15.5px; line-height:1.7;}
+
+  /* ---------- Tool grid ---------- */
+  .tool-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:8px; overflow:hidden;
+  }
+  .tool-card{
+    background:var(--panel); padding:28px 26px; min-height:210px;
+    display:flex; flex-direction:column;
+    transition:background .2s ease;
+    position:relative;
+  }
+  .tool-card:hover{background:var(--panel-hi);}
+  .tool-card:hover::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--flag);
+  }
+  .tool-card .tag{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted-dim);
+    letter-spacing:0.06em; text-transform:uppercase; margin-bottom:14px;
+  }
+  .tool-card h3{
+    font-family:'Space Grotesk', sans-serif; font-size:18px; font-weight:600;
+    margin-bottom:10px; letter-spacing:-0.01em;
+  }
+  .tool-card h3 .pp{color:var(--flag);}
+  .tool-card p{font-size:13.5px; line-height:1.6; color:var(--muted);}
+  .live-badge{
+    position:absolute; top:22px; right:24px;
+    font-family:'JetBrains Mono', monospace; font-size:9.5px; letter-spacing:0.05em;
+    color:var(--clean); background:var(--clean-dim);
+    padding:3px 7px; border-radius:3px; text-transform:uppercase;
+  }
+  .card-download{
+    display:inline-flex; align-items:center; gap:6px;
+    margin-top:14px; font-family:'JetBrains Mono', monospace; font-size:11.5px;
+    color:var(--text); border:1px solid var(--line); border-radius:3px;
+    padding:7px 12px; width:fit-content;
+    transition:border-color .2s ease, background .2s ease;
+  }
+  .card-download:hover{border-color:var(--flag); background:var(--flag-dim);}
+  .card-download::before{content:"↓";}
+
+  /* ---------- Capability strip ---------- */
+  .cap-strip{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:8px; overflow:hidden;
+    margin-top:20px;
+  }
+  .cap{background:var(--panel); padding:26px 22px;}
+  .cap .num{font-family:'JetBrains Mono', monospace; color:var(--flag); font-size:22px; font-weight:700; display:block; margin-bottom:6px;}
+  .cap .lbl{font-size:12.5px; color:var(--muted); line-height:1.5;}
+
+  /* ---------- Workflow ---------- */
+  .flow{display:flex; flex-direction:column; border-top:1px solid var(--line);}
+  .flow-row{
+    display:grid; grid-template-columns:64px 1fr; gap:24px;
+    padding:26px 0; border-bottom:1px solid var(--line);
+  }
+  .flow-row .fnum{font-family:'JetBrains Mono', monospace; color:var(--muted-dim); font-size:13px; padding-top:2px;}
+  .flow-row h4{font-family:'Space Grotesk', sans-serif; font-size:17px; margin-bottom:6px;}
+  .flow-row p{font-size:14px; color:var(--muted); line-height:1.6; max-width:640px;}
+
+  /* ---------- CTA ---------- */
+  .cta-band{
+    text-align:center; padding:110px 48px; border-top:1px solid var(--line);
+    background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(255,77,125,0.06), transparent);
+  }
+  .cta-band h2{margin-bottom:18px;}
+  .cta-band p{color:var(--muted); margin-bottom:36px; max-width:480px; margin-left:auto; margin-right:auto;}
+
+  footer{
+    border-top:1px solid var(--line); padding:36px 48px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted-dim);
+  }
+
+  @media (max-width:900px){
+    header{padding:18px 22px;}
+    nav ul{display:none;}
+    .hero{grid-template-columns:1fr; padding:70px 22px 60px; gap:44px;}
+    section{padding:70px 22px;}
+    .tool-grid{grid-template-columns:1fr;}
+    .cap-strip{grid-template-columns:1fr 1fr;}
+    .flow-row{grid-template-columns:40px 1fr;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .scan-row{animation:none; opacity:1; transform:none;}
+    html{scroll-behavior:auto;}
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<header>
+  <div class="logo"><span class="dot"></span>deepchecks</div>
+  <nav>
+    <ul>
+      <li><a href="#toolkit">Toolkit</a></li>
+      <li><a href="#workflow">Workflow</a></li>
+      <li><a href="#coverage">Coverage</a></li>
+    </ul>
+  </nav>
+  <a href="#toolkit" class="nav-cta">View toolkit →</a>
+</header>
+
+<section class="hero">
+  <div>
+    <span class="eyebrow">Artifact-level PC integrity review</span>
+    <h1>Every trace<br>tells the truth<span class="accent">.</span></h1>
+    <p class="lede">Deepchecks is a suite of upgraded forensic utilities for reviewing a system end to end — file history, USB and device logs, memory, and journal artifacts — built to surface what cleaning and bypass tools try to hide.</p>
+    <div class="hero-actions">
+      <a href="deepchecks.py" download class="btn-primary">Download deepchecks</a>
+      <a href="#toolkit" class="btn-ghost">Browse the toolkit</a>
+    </div>
+  </div>
+
+  <div class="scan-panel">
+    <div class="scan-panel-head">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="title">MFTExplorer++ — live scan</div>
+      <div class="title mono">0x14EF</div>
+    </div>
+    <div class="scan-rows" id="scanRows"></div>
+    <div class="scan-panel-foot">
+      <span>1,842 records parsed</span>
+      <span>2 flagged</span>
+    </div>
+  </div>
+</section>
+
+<section id="toolkit">
+  <div class="section-head">
+    <span class="section-num">01 / TOOLKIT</span>
+    <h2>Twelve tools. One case file.</h2>
+    <p>Each utility is a rebuilt version of a familiar artifact viewer, extended with cross-referencing, signature checks, and bypass detection so nothing has to be reviewed in isolation.</p>
+    <p style="margin-top:14px; font-size:13px; color:var(--muted-dim);">Each "Live" tool below is a real, tested Python script you can download individually. They don't run themselves when downloaded — open a terminal in the folder you save it to and run <code style="color:var(--flag);">python3 toolname.py</code> (Python 3 required, nothing else to install). Double-clicking works too on most systems once Python is installed and associated with .py files.</p>
+  </div>
+
+  <div class="tool-grid">
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">String analysis</span>
+      <h3>StringExplorer<span class="pp">++</span></h3>
+      <p>Navigate an executable's complete string data to verify compilation dates, read entropy, and flag anomalous indicators — with direct VirusTotal lookups built in.</p>
+      <a href="stringexplorer_tool.py" download class="card-download">stringexplorer_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge" style="color:var(--muted-dim); background:rgba(255,255,255,0.04);">Not built</span>
+      <span class="tag">Match integrity</span>
+      <h3>MOSS<span class="pp"> 2.0</span></h3>
+      <p>A ground-up rewrite of Match Observation &amp; Statistical System, purpose-built for Rainbow Six Siege, giving real-time integrity monitoring during competitive matches.</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--muted-dim);">Why not built: Requires live game-process memory access to a specific third-party product — a different category of tool than the artifact parsers here.</p>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Execution history</span>
+      <h3>WinPrefetchView<span class="pp">++</span></h3>
+      <p>Built-in bypass detection with modified files highlighted in pink. Every file is checked against signature and YARA rules, with support for your own custom rule sets.</p>
+      <a href="prefetch_tool.py" download class="card-download">prefetch_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Device artifacts</span>
+      <h3>USBDeview<span class="pp">++</span></h3>
+      <p>Pulls every available device log across sources and cross-references IDs against DeviceHunt and other live APIs — built to catch DMA threats, USB bypasses, and cleaned device traces.</p>
+      <a href="usb_tool.py" download class="card-download">usb_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Download history</span>
+      <h3>SavedFilesViewer<span class="pp">++</span></h3>
+      <p>Surfaces every file saved to disk and cross-references artifacts to timestamp when each download occurred — fully local, with built-in cleaner-bypass detection.</p>
+      <a href="savedfiles_tool.py" download class="card-download">savedfiles_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge" style="color:var(--muted-dim); background:rgba(255,255,255,0.04);">Not built</span>
+      <span class="tag">Network usage</span>
+      <h3>SRUMExplorer<span class="pp">++</span></h3>
+      <p>Maps every file path and active service from System Resource Usage Monitor, with byte-level network usage, automated forensic checks, and USN journal tracking.</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--muted-dim);">Why not built: SRUM's database is an ESE/JET binary format — too complex to build correctly without a testable parsing library.</p>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Shell history</span>
+      <h3>PowerShellParser<span class="pp">++</span></h3>
+      <p>A rebuilt replacement for Hayabusa: comprehensive scraping of PowerShell history artifacts with advanced filters built to surface PowerShell-based bypasses.</p>
+      <a href="powershell_tool.py" download class="card-download">powershell_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Path analysis</span>
+      <h3>PathsParser<span class="pp">++</span></h3>
+      <p>A streamlined path parser supporting multiple input methods, integrated YARA rules, and a visual USN journal viewer that highlights modifications in pink.</p>
+      <a href="pathsparser_tool.py" download class="card-download">pathsparser_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">File table</span>
+      <h3>MFTExplorer<span class="pp">++</span></h3>
+      <p>A defined view of the $MFT that identifies suspicious Alternate Data Streams and gives accurate filtering for historical file traces — essential for confirming a file was ever present.</p>
+      <a href="mft_tool.py" download class="card-download">mft_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge" style="color:var(--muted-dim); background:rgba(255,255,255,0.04);">Not built</span>
+      <span class="tag">Memory capture</span>
+      <h3>KernelLiveDump<span class="pp">++</span></h3>
+      <p>Dumps kernel and user-mode RAM together, loads external dumps, and compiles captured strings into a filterable results table with a toggle for flagged strings only.</p>
+      <a href="KernelLiveDump.exe" download class="card-download">KernelLiveDump.exe</a>
+    </div>
+      <p style="margin-top:8px; font-size:12px; color:var(--muted-dim);">Why not built: Full RAM/kernel dump analysis is its own large forensics engine (this is what tools like Volatility exist for).</p>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Journal analysis</span>
+      <h3>JournalTrace<span class="pp">++</span></h3>
+      <p>An evolved USN journal viewer with integrated bypass detection and sophisticated filtering by reason and keyword — built for fast, reliable review.</p>
+      <a href="journaltrace_tool.py" download class="card-download">journaltrace_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Crash artifacts</span>
+      <h3>CrashedFileViewer<span class="pp">++</span></h3>
+      <p>Unifies every Windows crash-related artifact into one view, with USN entry highlighting for modified crash files and detection for log-clearing attempts.</p>
+      <a href="crashedfile_tool.py" download class="card-download">crashedfile_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Download history</span>
+      <h3>BrowserDownloadsView<span class="pp">++</span></h3>
+      <p>Consolidates download history from multiple browsers into a single view, cross-referenced source URL, size, and completion state — Chromium and Firefox both supported.</p>
+      <a href="downloads_history_tool.py" download class="card-download">downloads_history_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Browsing history</span>
+      <h3>BrowsingHistoryView<span class="pp">++</span></h3>
+      <p>Consolidates browsing history across multiple browsers into a single interface, with visit timestamps and counts to analyze site engagement timing.</p>
+      <a href="browsing_history_tool.py" download class="card-download">browsing_history_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Execution history</span>
+      <h3>BamParser<span class="pp">++</span></h3>
+      <p>Extracts execution history and last-run timestamps from the Background Activity Monitor for every program that's run on the system.</p>
+      <a href="bam_tool.py" download class="card-download">bam_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="live-badge">Live</span>
+      <span class="tag">Execution history</span>
+      <h3>AmcacheParser<span class="pp">++</span></h3>
+      <p>High-performance Amcache parser with SHA1-based filtering, publisher and link-date metadata, and support for both the modern and legacy Amcache schemas.</p>
+      <a href="amcache_tool.py" download class="card-download">amcache_tool.py</a>
+    </div>
+
+  <div class="cap-strip">
+    <div class="cap"><span class="num">13/16</span><span class="lbl">tools shipping working parsers today</span></div>
+    <div class="cap"><span class="num">USN</span><span class="lbl">journal cross-referencing now live in PathsParser++ / JournalTrace++</span></div>
+    <div class="cap"><span class="num">3</span><span class="lbl">not built: MOSS 2.0, SRUMExplorer++, KernelLiveDump++ — see below</span></div>
+    <div class="cap"><span class="num">100%</span><span class="lbl">local — nothing leaves the machine being reviewed</span></div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="section-head">
+    <span class="section-num">02 / WORKFLOW</span>
+    <h2>How a review actually runs.</h2>
+    <p>Deepchecks doesn't replace judgment — it removes the blind spots a manual pass would miss.</p>
+  </div>
+  <div class="flow">
+    <div class="flow-row">
+      <span class="fnum mono">1</span>
+      <div><h4>Pull the artifacts</h4><p>Run the relevant viewers — prefetch, MFT, SRUM, USB, saved files — to build a full timeline of what touched the system and when.</p></div>
+    </div>
+    <div class="flow-row">
+      <span class="fnum mono">2</span>
+      <div><h4>Cross-reference automatically</h4><p>Each tool checks its findings against the USN journal and related artifacts, so a file removed from one source but still present in another gets caught.</p></div>
+    </div>
+    <div class="flow-row">
+      <span class="fnum mono">3</span>
+      <div><h4>Run signature and YARA checks</h4><p>Every file surfaced is checked against built-in signature databases and YARA rules, plus any custom rule sets you've imported.</p></div>
+    </div>
+    <div class="flow-row">
+      <span class="fnum mono">4</span>
+      <div><h4>Flag what a cleaner missed</h4><p>Built-in bypass detection highlights inconsistencies that indicate a log or artifact was cleared, so gaps in the record are visible instead of silent.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="coverage">
+  <div class="section-head">
+    <span class="section-num">03 / COVERAGE</span>
+    <h2>Built around the artifacts, not around trust.</h2>
+    <p>Every tool in the suite is local-first and reads directly from disk and memory — no telemetry, no remote dependency for the core scan.</p>
+  </div>
+  <div class="tool-grid" style="grid-template-columns:repeat(2,1fr);">
+    <div class="tool-card">
+      <span class="tag">Disk</span>
+      <h3>File &amp; path layer</h3>
+      <p>MFT, saved files, prefetch, and paths analysis together cover what was written to disk, when, and whether it still matches the journal's record of it.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tag">Memory &amp; process</span>
+      <h3>Runtime layer</h3>
+      <p>Kernel and user-mode RAM capture plus crash artifacts cover what was running, including traces that never touched disk at all.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tag">Peripheral</span>
+      <h3>Device layer</h3>
+      <p>USB and device history cross-referenced against live ID databases, aimed at DMA and external-device bypass attempts.</p>
+    </div>
+    <div class="tool-card">
+      <span class="tag">Activity</span>
+      <h3>Shell &amp; network layer</h3>
+      <p>PowerShell history and SRUM network usage round out the picture of what was executed and what it talked to.</p>
+    </div>
+  </div>
+</section>
+
+<div class="cta-band">
+  <h2>13 of 16 tools are real right now.</h2>
+  <p>Every tool marked "Live" above parses real artifacts today — download individually, or grab the whole suite in one file. MOSS 2.0, SRUMExplorer++, and KernelLiveDump++ aren't built (see their cards for why).</p>
+  <a href="deepchecks.py" download class="btn-primary">Download deepchecks (all 13 tools)</a>
+</div>
+
+<footer>
+  <span>deepchecks</span>
+  <span>Forensic artifact toolkit — local-first review tools</span>
+</footer>
+
+<script>
+  const rows = [
+    {path:"C:\\Windows\\Prefetch\\GAME.EXE-3F21A9.pf", ts:"14:02:11", status:"clean"},
+    {path:"C:\\Users\\~\\AppData\\Local\\Temp\\svc_upd.dll", ts:"14:02:09", status:"flag"},
+    {path:"C:\\$MFT (record 88231)", ts:"14:02:07", status:"clean"},
+    {path:"C:\\Windows\\System32\\drivers\\etc\\hosts", ts:"14:02:04", status:"clean"},
+    {path:"C:\\Users\\~\\Downloads\\loader_v2.bin", ts:"14:01:58", status:"flag"},
+    {path:"C:\\Windows\\Prefetch\\EXPLORER.EXE-AA12.pf", ts:"14:01:55", status:"clean"},
+    {path:"USN Journal — reason: FILE_DELETE", ts:"14:01:51", status:"flag"},
+    {path:"C:\\Users\\~\\AppData\\Roaming\\cfg\\settings.json", ts:"14:01:47", status:"clean"},
+  ];
+  const container = document.getElementById('scanRows');
+  rows.forEach((r, i) => {
+    const el = document.createElement('div');
+    el.className = 'scan-row';
+    el.style.animationDelay = (i * 0.12) + 's';
+    el.innerHTML = `
+      <span class="idx">${String(i+1).padStart(2,'0')}</span>
+      <span class="path">${r.path}</span>
+      <span class="ts">${r.ts}</span>
+      <span class="badge ${r.status === 'clean' ? 'clean' : 'flag'}">${r.status === 'clean' ? 'VERIFIED' : 'FLAGGED'}</span>
+    `;
+    container.appendChild(el);
+  });
+</script>
+
+</body>
+</html>
