@@ -215,6 +215,12 @@
   }
   .card-download:hover{border-color:var(--flag); background:var(--flag-dim);}
   .card-download::before{content:"↓";}
+  .badge-uploaded{
+    position:absolute; top:22px; right:24px;
+    font-family:'JetBrains Mono', monospace; font-size:9.5px; letter-spacing:0.05em;
+    color:#E8B84D; background:rgba(232,184,77,0.10);
+    padding:3px 7px; border-radius:3px; text-transform:uppercase;
+  }
 
   /* ---------- Capability strip ---------- */
   .cap-strip{
@@ -316,6 +322,14 @@
   </div>
 
   <div class="tool-grid">
+    <div class="tool-card">
+      <span class="badge-uploaded">Your upload</span>
+      <span class="tag">Anti-injection watchdog</span>
+      <h3>IndexxFileSystemEventHandler</h3>
+      <p>Scans a Gorilla Tag install directory and running process for known mod-loader artifacts (BepInEx, MelonLoader, doorstop_config.ini, proxy DLLs loaded from non-system paths), quarantines matches, and can gate or kill the game process if an injected module is detected post-launch.</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--muted-dim);">Not one of the tested deepchecks tools — this is your own uploaded script. Windows only, requires <code style="color:var(--flag);">pip install psutil</code> (optional: <code style="color:var(--flag);">watchdog</code> for live filesystem monitoring).</p>
+      <a href="IndexxFileSystemEventHandler.py" download class="card-download">IndexxFileSystemEventHandler.py</a>
+    </div>
     <div class="tool-card">
       <span class="live-badge">Live</span>
       <span class="tag">String analysis</span>
@@ -431,6 +445,14 @@
       <h3>AmcacheParser<span class="pp">++</span></h3>
       <p>High-performance Amcache parser with SHA1-based filtering, publisher and link-date metadata, and support for both the modern and legacy Amcache schemas.</p>
       <a href="amcache_tool.py" download class="card-download">amcache_tool.py</a>
+    </div>
+    <div class="tool-card">
+      <span class="badge-uploaded">Your upload</span>
+      <span class="tag">Process/task scanner</span>
+      <h3>GTagCheatScanner</h3>
+      <p>Scans running processes and Windows Scheduled Tasks for known Gorilla Tag injector/mod-loader process-name patterns via regex, with confidence levels (HIGH/MEDIUM/WATCH) and path-based checks so ambiguous names like svchost or apphost only flag when running outside System32.</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--muted-dim);">Not one of the tested deepchecks tools — this is your own uploaded script. Read-only: it only reports, it doesn't quarantine or kill anything. Requires <code style="color:var(--flag);">pip install psutil</code>; scheduled-task scanning is Windows-only, process scanning works cross-platform.</p>
+      <a href="gtag_cheat_scanner.py" download class="card-download">gtag_cheat_scanner.py</a>
     </div>
 
   <div class="cap-strip">
